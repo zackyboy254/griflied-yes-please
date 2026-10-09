@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import mouse from "@/assets/mouse.png";
 
 export const Route = createFileRoute("/")({
@@ -28,6 +28,25 @@ function Index() {
   const [tries, setTries] = useState(0);
   const [tip, setTip] = useState(false);
   const [yes, setYes] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
+  const playerRef = useRef<HTMLIFrameElement>(null);
+
+  // Browsers block autoplay with sound until the user interacts with the page,
+  // so the video starts muted and is unmuted on the first gesture.
+  useEffect(() => {
+    const send = (func: string, args: unknown[] = []) =>
+      playerRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+    const unmute = () => {
+      send("unMute");
+      send("setVolume", [100]);
+      send("playVideo");
+      setSoundOn(true);
+      events.forEach((e) => window.removeEventListener(e, unmute));
+    };
+    const events = ["pointerdown", "touchstart", "keydown", "click"];
+    events.forEach((e) => window.addEventListener(e, unmute, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, unmute));
+  }, []);
 
   const runAway = () => {
     setTries((t) => t + 1);
@@ -45,8 +64,8 @@ function Index() {
         <iframe
           width="100%"
           height="100%"
-          key={Date.now()}
-          src="https://www.youtube.com/embed/2ZTcvsdMR1c?si=A217ubNsaCiJmduN&autoplay=1&enablejsapi=1&rel=0"
+          ref={playerRef}
+          src="https://www.youtube.com/embed/2ZTcvsdMR1c?autoplay=1&mute=1&enablejsapi=1&rel=0&controls=0&playsinline=1&loop=1&playlist=2ZTcvsdMR1c"
           title="Background music"
           allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           referrerPolicy="strict-origin-when-cross-origin"
@@ -54,6 +73,12 @@ function Index() {
           className="h-full w-full scale-150 opacity-25"
         />
       </div>
+
+      {!soundOn && (
+        <div className="pointer-events-none fixed bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full bg-card/80 px-4 py-2 text-sm text-muted-foreground shadow-lg backdrop-blur animate-pulse">
+          🔊 Tap anywhere for sound
+        </div>
+      )}
 
       {hearts.map((h, i) => (
         <span key={i} className="heart-float pointer-events-none absolute bottom-[-40px] text-primary/60 z-10"
